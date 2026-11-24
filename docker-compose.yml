@@ -1,23 +1,62 @@
+# Production stack for a VPS: web (Caddy + frontend, HTTPS) -> api -> db/redis.
+# Only the web service is reachable from the internet (ports 80/443).
+# Usage: cp .env.production.example .env  &&  edit .env  &&  docker compose up -d --build
 services:
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN, e.g. cine.example.com}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   api:
     build: .
-    ports:
-      - "3000:3000"
     command: ["sh", "-c", "npm run db:migrate && npm start"]
+    expose:
+      - "3000"
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set a URL-safe POSTGRES_PASSWORD}@db:5432/lk21?schema=public
       DIRECT_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set a URL-safe POSTGRES_PASSWORD}@db:5432/lk21?schema=public
       REDIS_URL: redis://redis:6379
       PORT: 3000
       NODE_ENV: production
+      # Caddy sits in front of the API: trust one proxy hop so limits and playback sessions see viewer IPs.
+      TRUST_PROXY: 1
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://${DOMAIN}}
       CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET}
       OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}
       LK21_BASE_URL: ${LK21_BASE_URL:-https://tv13.lk21official.cc}
       LK21_BASE_URLS: ${LK21_BASE_URLS:-}
+      DRAMA_BASE_URLS: ${DRAMA_BASE_URLS:-https://tv1.nontondrama.vip}
+      UPSTREAM_REDIRECT_HOSTS: ${UPSTREAM_REDIRECT_HOSTS:-lk21.de,lk21official.cc,lk21official.dev,nontondrama.vip}
+      LK21_PROXY_URL: ${LK21_PROXY_URL:-}
+      EMBED_HOSTS: ${EMBED_HOSTS:-abyssplayer.com,abysscdn.com,abyss.to}
+      PLAYBACK_ENABLED: ${PLAYBACK_ENABLED:-false}
+      PLAYBACK_SESSIONS_PER_IP: ${PLAYBACK_SESSIONS_PER_IP:-3}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
       CATALOG_TTL_SECONDS: ${CATALOG_TTL_SECONDS:-1800}
       DETAIL_TTL_SECONDS: ${DETAIL_TTL_SECONDS:-3600}
       CATALOG_SEED_PAGES: ${CATALOG_SEED_PAGES:-3}
+      CATALOG_CRAWL_PAGES_PER_RUN: ${CATALOG_CRAWL_PAGES_PER_RUN:-20}
+      CATALOG_CRAWL_DELAY_MS: ${CATALOG_CRAWL_DELAY_MS:-2000}
       UPSTREAM_TIMEOUT_MS: ${UPSTREAM_TIMEOUT_MS:-8000}
+      UPSTREAM_TOTAL_TIMEOUT_MS: ${UPSTREAM_TOTAL_TIMEOUT_MS:-15000}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +81,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redisdata:/data
     healthcheck:
@@ -54,3 +94,5 @@ services:
 volumes:
   pgdata:
   redisdata:
+  caddy_data:
+  caddy_config:

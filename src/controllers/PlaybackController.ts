@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { pipeline } from 'stream';
-import { createPlayback, getPlaylist, getSegment, SegmentStream } from '../services/PlaybackService';
+import { createPlayback, getPlaylist, getSegment, getVariantPlaylist, SegmentStream } from '../services/PlaybackService';
 import { slugParameter } from '../services/validation';
 import { ServiceError } from '../services/errors';
 
@@ -10,7 +10,7 @@ const viewer = (req: Request) => req.ip || req.socket.remoteAddress || 'unknown'
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const type = req.params.type;
-    if (type !== 'movie' && type !== 'series') throw new ServiceError(400, 'Invalid content type');
+    if (type !== 'movie' && type !== 'series' && type !== 'episode') throw new ServiceError(400, 'Invalid content type');
     const session = await createPlayback(type, slugParameter(req.params.slug), viewer(req));
     res.set('Cache-Control', 'no-store').json({ success: true, data: session });
   } catch (error) { next(error); }
@@ -21,10 +21,15 @@ export function playlist(req: Request, res: Response, next: NextFunction) {
   catch (error) { next(error); }
 }
 
+export function variantPlaylist(req: Request, res: Response, next: NextFunction) {
+  try { res.set('Cache-Control', 'no-store').type('application/vnd.apple.mpegurl').send(getVariantPlaylist(req.params.token, req.params.variant, viewer(req))); }
+  catch (error) { next(error); }
+}
+
 export async function segment(req: Request, res: Response, next: NextFunction) {
   let segmentStream: SegmentStream;
   try {
-    segmentStream = await getSegment(req.params.token, req.params.index, viewer(req));
+    segmentStream = await getSegment(req.params.token, req.params.index, viewer(req), req.params.variant ?? '0');
   } catch (error) { return next(error); }
   const { stream, length } = segmentStream;
   if (req.destroyed) { stream.destroy(); return; }

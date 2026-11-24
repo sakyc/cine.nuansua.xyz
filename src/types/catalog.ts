@@ -9,6 +9,8 @@ export const homeSections = [
 
 export type HomeSection = typeof homeSections[number];
 export type ContentType = 'movie' | 'series';
+/** Detail pages: titles plus single series episodes (which carry the video servers). */
+export type DetailType = ContentType | 'episode';
 
 export const emptyExtraDetails = () => ({
   synopsis: '', subtitle: '', sutradara: '', bintangFilm: '', negara: '',
@@ -25,6 +27,9 @@ export type CatalogCard = ReturnType<typeof emptyExtraDetails> & {
   rating: number | null;
   duration: string | null;
   genre: string | null;
+  /** Series only: whether it is still airing, and the number of episodes released so far. */
+  status?: 'ongoing' | 'complete';
+  episodes?: number | null;
 };
 export type HomeSnapshot = Record<HomeSection, CatalogCard[]>;
 export type CategorySnapshot = { page: number; totalPages: number; items: CatalogCard[] };

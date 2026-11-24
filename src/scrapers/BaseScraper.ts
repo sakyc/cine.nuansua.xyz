@@ -13,6 +13,29 @@ export class PageNotFoundError extends Error {
   }
 }
 
+// One keep-alive agent for all page fetches so connections to the source are reused.
+const sharedAgent = new https.Agent({ family: 4, keepAlive: true, maxSockets: 32, maxFreeSockets: 8, timeout: 30_000 });
+
+/** Hosts the scraper may land on: configured mirrors plus UPSTREAM_REDIRECT_HOSTS (subdomains included). */
+function allowedHosts(): string[] {
+  const configured = [...(config.lk21BaseUrls || []), config.lk21BaseUrl, ...(config.dramaBaseUrls || [])]
+    .map(base => { try { return new URL(base).hostname.toLowerCase(); } catch { return ''; } })
+    .filter(Boolean);
+  return [...new Set([...configured, ...(config.redirectHosts || [])])];
+}
+
+export function isAllowedUpstream(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    // The series site sometimes redirects to plain http when trimming a trailing slash.
+    return (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password && !url.port
+      && allowedHosts().some(allowed => host === allowed || host.endsWith(`.${allowed}`));
+  } catch {
+    return false;
+  }
+}
+
 export class BaseScraper {
   protected get baseUrl() {
     return config.lk21BaseUrl;
@@ -22,7 +45,7 @@ export class BaseScraper {
     return config.lk21BaseUrls?.length ? config.lk21BaseUrls : [config.lk21BaseUrl];
   }
 
-  private buildAxiosConfig(url: string, baseUrl: string) {
+  private buildAxiosConfig(url: string, baseUrl: string, remainingMs = Number.MAX_SAFE_INTEGER) {
     const cfg: any = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -40,8 +63,8 @@ export class BaseScraper {
         'Sec-Fetch-User': '?1',
         'Upgrade-Insecure-Requests': '1'
       },
-      httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
-      timeout: config.upstreamTimeoutMs || 8000,
+      httpsAgent: sharedAgent,
+      timeout: Math.max(1000, Math.min(config.upstreamTimeoutMs || 8000, remainingMs)),
       maxRedirects: 5,
       validateStatus: (s: number) => s < 500,
     };
@@ -65,13 +88,20 @@ export class BaseScraper {
     const isAbsolute = endpoint.startsWith('http');
     const bases = isAbsolute ? [''] : this.baseUrls;
     const tried: Array<{ base: string; status?: number; error?: string }> = [];
+    // All mirrors together get one time budget, so a dead source cannot stall a request for minutes.
+    const deadline = Date.now() + (config.upstreamTotalTimeoutMs || 15000);
 
     for (const base of bases) {
+      const remaining = deadline - Date.now();
+      if (remaining < 1000) {
+        tried.push({ base: isAbsolute ? endpoint : base, error: 'time budget exhausted' });
+        break;
+      }
       const url = isAbsolute ? endpoint : `${base}${endpoint}`;
       const baseLabel = isAbsolute ? new URL(endpoint).origin : base;
       const requestedPath = new URL(url).pathname;
       try {
-        const response = await axios.get(url, this.buildAxiosConfig(url, baseLabel));
+        const response = await axios.get(url, this.buildAxiosConfig(url, baseLabel, remaining));
 
         if (response.status === 403 || response.status === 401 || response.status === 429 || response.status >= 500) {
           tried.push({ base: baseLabel, status: response.status });
@@ -87,6 +117,11 @@ export class BaseScraper {
         }
 
         const finalUrl = response.request?.res?.responseUrl || '';
+        if (finalUrl && !isAllowedUpstream(finalUrl)) {
+          tried.push({ base: baseLabel, error: 'redirected to an unknown host' });
+          logger.warn('Upstream redirected to an unknown host', { endpoint, host: new URL(finalUrl).hostname });
+          continue;
+        }
         if (finalUrl) {
           const finalPath = new URL(finalUrl).pathname;
           if (finalPath === '/' && requestedPath !== '/' && requestedPath !== '') {
@@ -99,8 +134,14 @@ export class BaseScraper {
         const redirectBtn = $('a:contains("Buka Sekarang"), a:contains("Nontondrama")');
         if (redirectBtn.length > 0 && redirectBtn.attr('href')) {
           const targetUrl = redirectBtn.attr('href') as string;
+          // Only follow the source's "open the new site" button to known LK21/series-site hosts.
+          if (!isAllowedUpstream(targetUrl)) {
+            tried.push({ base: baseLabel, error: 'redirect button points to an unknown host' });
+            logger.warn('Ignoring redirect button to an unknown host', { endpoint });
+            continue;
+          }
           logger.info(`Following redirect to ${targetUrl}`);
-          const targetResponse = await axios.get(targetUrl, this.buildAxiosConfig(targetUrl, baseLabel));
+          const targetResponse = await axios.get(targetUrl, this.buildAxiosConfig(targetUrl, baseLabel, Math.max(1000, deadline - Date.now())));
 
           if ([401, 403, 429].includes(targetResponse.status) || targetResponse.status >= 500) {
             tried.push({ base: baseLabel, status: targetResponse.status });
@@ -114,6 +155,10 @@ export class BaseScraper {
           }
 
           const targetFinalUrl = targetResponse.request?.res?.responseUrl || '';
+          if (targetFinalUrl && !isAllowedUpstream(targetFinalUrl)) {
+            tried.push({ base: baseLabel, error: 'redirected to an unknown host' });
+            continue;
+          }
           if (targetFinalUrl) {
             const finalPath = new URL(targetFinalUrl).pathname;
             if (finalPath === '/' && requestedPath !== '/' && requestedPath !== '') {

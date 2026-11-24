@@ -22,6 +22,11 @@ export function HlsPlayer({ type, slug }: { type: string; slug: string }) {
   const [subtitleColor, setSubtitleColor] = useState('#ffffff');
   const [subtitlePosition, setSubtitlePosition] = useState<SubtitlePosition>('bottom');
   const subtitlePositionRef = useRef<SubtitlePosition>('bottom');
+  const playerRef = useRef<Hls | null>(null);
+  // Qualities offered by the source (hls.js level index + label); -1 means automatic switching.
+  const [levels, setLevels] = useState<Array<{ index: number; label: string }>>([]);
+  const [quality, setQuality] = useState(-1);
+  const [activeLevel, setActiveLevel] = useState('');
 
   const configureTrack = (track: TextTrack, enabled: boolean) => {
     track.mode = enabled ? 'showing' : 'disabled';
@@ -84,15 +89,25 @@ export function HlsPlayer({ type, slug }: { type: string; slug: string }) {
           if (controller.signal.aborted) return;
           if (!HlsClass.isSupported()) throw new Error('Unsupported browser');
           player = new HlsClass();
+          playerRef.current = player;
           player.on(HlsClass.Events.ERROR, (_event, data) => { if (data.fatal) setState('error'); });
-          player.on(HlsClass.Events.MANIFEST_PARSED, () => setState('ready'));
+          player.on(HlsClass.Events.MANIFEST_PARSED, (_event, data) => {
+            const label = (level: { height?: number; bitrate?: number }) => level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)} kbps`;
+            setLevels(data.levels.map((level, index) => ({ index, label: label(level) })).sort((a, b) => parseInt(b.label) - parseInt(a.label)));
+            setQuality(-1);
+            setState('ready');
+          });
+          player.on(HlsClass.Events.LEVEL_SWITCHED, (_event, data) => {
+            const level = player?.levels[data.level];
+            setActiveLevel(level?.height ? `${level.height}p` : '');
+          });
           player.loadSource(playlist);
           player.attachMedia(element);
         }
       } catch { if (!controller.signal.aborted) setState('error'); }
     };
     void start();
-    return () => { controller.abort(); player?.destroy(); };
+    return () => { controller.abort(); player?.destroy(); playerRef.current = null; setLevels([]); setActiveLevel(''); };
   }, [type, slug, attempt]);
 
   return <div className="hls-player">
@@ -105,7 +120,12 @@ export function HlsPlayer({ type, slug }: { type: string; slug: string }) {
           : <><button className="play-button" type="button" aria-label="Siapkan video" onClick={() => { setState('loading'); setAttempt(value => value + 1); }}><Play size={25} fill="currentColor" /></button><span>Tekan untuk menyiapkan video</span></>}
     </div>}
     {state === 'ready' && <div className="hls-tools" aria-label="Pengaturan video">
-      <label>Kualitas <select aria-label="Kualitas video" disabled value="original"><option value="original">Asli{resolution ? ` (${resolution})` : ''}</option></select></label>
+      {levels.length > 1
+        ? <label>Kualitas <select aria-label="Kualitas video" value={quality} onChange={event => { const value = Number(event.target.value); setQuality(value); if (playerRef.current) playerRef.current.currentLevel = value; }}>
+            <option value={-1}>Otomatis{quality === -1 && activeLevel ? ` (${activeLevel})` : ''}</option>
+            {levels.map(level => <option key={level.index} value={level.index}>{level.label}</option>)}
+          </select></label>
+        : <label>Kualitas <select aria-label="Kualitas video" disabled value="original"><option value="original">Asli{resolution ? ` (${resolution})` : ''} · satu-satunya dari sumber</option></select></label>}
       <label>Subtitle <select aria-label="Pilihan subtitle" value={subtitleEnabled && selectedSubtitle ? selectedSubtitle : 'off'} onChange={event => { const value = event.target.value; if (value === 'off') setSubtitleEnabled(false); else { setSubtitleEnabled(true); if (value !== selectedSubtitle) { setSubtitle(null); setSubtitleStatus('Memuat subtitle…'); setSelectedSubtitle(value); } } }}><option value="off">Mati</option>{subtitleOptions.map(option => <option key={option.token} value={option.token}>{option.language === 'id' ? 'Indonesia' : 'English'}{option.release ? ` · ${option.release}` : ''}</option>)}</select></label>
       {subtitle && <details className="subtitle-settings"><summary>Atur subtitle</summary><div>
         <label>Ukuran <select aria-label="Ukuran subtitle" value={subtitleSize} onChange={event => setSubtitleSize(event.target.value)}><option value="80%">Kecil</option><option value="100%">Normal</option><option value="130%">Besar</option><option value="160%">Sangat besar</option></select></label>

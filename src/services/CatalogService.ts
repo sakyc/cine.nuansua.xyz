@@ -1,6 +1,6 @@
 import { CatalogRepository, StoredSnapshot } from '../repositories/CatalogRepository';
 import {
-  CatalogCard, CategorySnapshot, ContentType, DetailSnapshot, HomeSnapshot, JsonObject,
+  CatalogCard, CategorySnapshot, DetailSnapshot, DetailType, HomeSnapshot, JsonObject,
   homeSections, isCategorySnapshot, isDetailSnapshot, isHomeSnapshot,
 } from '../types/catalog';
 import { logger } from '../config/logger';
@@ -9,7 +9,7 @@ import { ServiceError } from './errors';
 type Loaders = {
   home: () => Promise<unknown>;
   category: (path: string, page: number) => Promise<unknown>;
-  detail: (type: ContentType, slug: string) => Promise<unknown>;
+  detail: (type: DetailType, slug: string) => Promise<unknown>;
 };
 type Options = { homeTtlMs: number; detailTtlMs: number; seedPages: number; now?: () => number };
 export type CatalogMeta = { source: 'catalog' | 'upstream'; stale: boolean; updatedAt: string };
@@ -49,7 +49,7 @@ export class CatalogService {
     }, force);
   }
 
-  getDetail(type: ContentType, slug: string): Promise<Result<DetailSnapshot>> {
+  getDetail(type: DetailType, slug: string): Promise<Result<DetailSnapshot>> {
     return this.resource({
       key: `detail:${type}:${slug}`, ttl: this.options.detailTtlMs,
       load: () => this.loaders.detail(type, slug),
@@ -67,6 +67,20 @@ export class CatalogService {
       logger.error('Catalog search storage unavailable');
       throw new ServiceError(503, 'Catalog search is temporarily unavailable');
     }
+  }
+
+  /**
+   * Indexes one listing page for the crawler: reuses a stored snapshot younger than `maxAgeMs`,
+   * otherwise fetches it from upstream (which also adds its titles to search).
+   */
+  async crawlCategory(path: string, page: number, maxAgeMs: number): Promise<{ items: number; totalPages: number; fetched: boolean }> {
+    const key = `category:${path}:${page}`;
+    const existing = this.snapshots.get(key) ?? await this.repository.getSnapshot(key).catch(() => null);
+    if (existing && isCategorySnapshot(existing.data) && this.now() - existing.updatedAt.getTime() < maxAgeMs) {
+      return { items: existing.data.items.length, totalPages: existing.data.totalPages, fetched: false };
+    }
+    const { data } = await this.getCategory(path, page, true);
+    return { items: data.items.length, totalPages: data.totalPages, fetched: true };
   }
 
   async refreshCatalog() {

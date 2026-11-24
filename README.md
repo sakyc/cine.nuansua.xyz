@@ -51,6 +51,39 @@ perantara trafik video; implementasi ini belum dilengkapi autentikasi, pembatasa
 per pengguna, penyimpanan sesi bersama, atau kontrol bandwidth, sehingga belum
 siap untuk diakses publik. Format selain HLS yang didukung belum ditangani.
 
+Server HYDRAX menjadi pilihan utama di halaman film karena menyediakan 360p–1080p,
+sedangkan P2P dari sumber hanya 480p. Halaman `videonode.de` menolak di-embed situs lain,
+jadi backend menanyakan alamat player aslinya (`GET /api/embed/movie/:slug/hydrax`,
+host dibatasi `EMBED_HOSTS`). Alamat disimpan di database selama 24 jam dan tetap dipakai
+sebagai cadangan saat `videonode.de` tidak dapat dijangkau. Frontend memuatnya dalam iframe
+ber-`sandbox` sehingga popup iklan dan pengalihan halaman diblokir; kualitas dipilih lewat
+ikon ⚙ di player. CAST tidak ditampilkan karena player-nya hanya mengizinkan domain sendiri.
+Server untuk episode series belum didukung.
+
+Series dan drakor diambil dari situs series LK21 (`DRAMA_BASE_URLS`, default nontondrama).
+`GET /api/drama/country/south-korea?page=1` adalah daftar drakor (juga `/drama/genre/:slug`,
+`/drama/year/:tahun`), `GET /api/series/:slug` berisi `seasons[].episodes[]`, dan
+`GET /api/episode/:slug` berisi server video satu episode. HYDRAX dan P2P untuk episode memakai
+`/api/embed/episode/:slug/hydrax` dan `POST /api/playback/episode/:slug`. Di frontend, halaman
+series menampilkan pilihan season/episode; episode yang dipilih tersimpan di URL (`?ep=`).
+
+Halaman **Jelajahi** (`/jelajah`) menyaring film atau series berdasarkan satu genre, negara,
+atau tahun (`GET /api/filters/movie|drama` berisi pilihannya, diambil dari form filter sumber).
+Sumber tidak memproses kombinasi filter, jadi hanya satu kategori yang aktif sekaligus. Kartu
+series membawa `status` (`ongoing`/`complete`) dan `episodes`. Serial ongoing ikut ter-update:
+daftar diperbarui setelah `CATALOG_TTL_SECONDS` dan detail series setelah `DETAIL_TTL_SECONDS`
+saat dibuka, sehingga episode baru muncul tanpa tindakan manual.
+
+Halaman `/ongoing` dan `/tamat` memakai daftar `series/ongoing` dan `series/complete` dari
+situs series (`GET /api/drama/series/ongoing`). `GET /api/series/:slug/schedule` memperkirakan
+hari update dari waktu unggah 6 episode terakhir (sumber tidak mencantumkan jadwal tayang) dan
+menandai series tidak aktif bila tidak ada episode baru selama 14 hari.
+
+Katalog pencarian diperluas oleh crawler yang menelusuri daftar film per tahun (terbaru ke 1970),
+`CATALOG_CRAWL_PAGES_PER_RUN` halaman setiap 30 menit dengan jeda `CATALOG_CRAWL_DELAY_MS`.
+Posisi tersimpan di database. Untuk menelusuri sekaligus: `npm run build` lalu
+`npm run catalog:crawl -- 2500`. Daftar LK21 berhenti di halaman 50 per kategori.
+
 Subtitle otomatis untuk film menggunakan OpenSubtitles jika
 `OPENSUBTITLES_API_KEY` dikonfigurasi di `.env.local`; buat API consumer di
 https://www.opensubtitles.com/consumers dan restart backend setelah mengaturnya.
@@ -124,7 +157,8 @@ npm run catalog:refresh
 `GET /api/cron` memerlukan header `Authorization: Bearer <CRON_SECRET>`.
 Tanpa secret terkonfigurasi: 503; secret salah: 401.
 
-Untuk seluruh stack Docker, gunakan `docker compose --env-file .env.local up -d --build`.
+Untuk deploy production di VPS (Caddy + HTTPS, API, PostgreSQL, Redis), ikuti [DEPLOY.md](DEPLOY.md):
+salin `.env.production.example` menjadi `.env`, lalu `docker compose up -d --build`.
 Compose ini memakai database/volume terpisah dari `docker-compose.local.yml`,
 menjalankan migrasi sebelum API, dan hanya mengekspos port API. Gunakan password
 URL-safe (misalnya hex acak) untuk interpolasi URL Compose. Password volume lama

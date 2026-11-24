@@ -39,3 +39,26 @@ it('tries the next configured source after a network timeout', async () => {
   get.mockRejectedValueOnce(new Error('Timeout')).mockResolvedValueOnce({ status: 200, data: '<h1>Available</h1>' });
   expect((await new TestScraper().load())('h1').text()).toBe('Available');
 });
+
+describe('upstream host checks', () => {
+  it('follows the redirect button only to known hosts', async () => {
+    get.mockResolvedValueOnce({ status: 200, data: '<a href="https://evil.example/x">Buka Sekarang</a>' });
+    get.mockResolvedValueOnce({ status: 200, data: '<a href="https://evil.example/x">Buka Sekarang</a>' });
+    await expect(new TestScraper().load()).rejects.toMatchObject({ status: 502 });
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(get.mock.calls.map(call => call[0])).not.toContain('https://evil.example/x');
+  });
+
+  it('rejects a page that was redirected to an unknown host', async () => {
+    get.mockResolvedValue({ status: 200, data: '<h1>x</h1>', request: { res: { responseUrl: 'https://evil.example/' } } });
+    await expect(new TestScraper().load()).rejects.toMatchObject({ status: 502 });
+  });
+
+  it('accepts subdomains of configured mirrors', async () => {
+    const { isAllowedUpstream } = jest.requireActual('../src/scrapers/BaseScraper');
+    expect(isAllowedUpstream('https://first.example/page')).toBe(true);
+    expect(isAllowedUpstream('https://cdn.first.example/page')).toBe(true);
+    expect(isAllowedUpstream('https://first.example.evil.com/page')).toBe(false);
+    expect(isAllowedUpstream('ftp://first.example/page')).toBe(false);
+  });
+});

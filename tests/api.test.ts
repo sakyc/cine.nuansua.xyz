@@ -20,6 +20,7 @@ jest.mock('../src/config/env', () => ({
     lk21BaseUrls: ['https://catalog.example'],
     proxyUrl: '',
     cronSecret: 'test-cron-secret',
+    redirectHosts: ['mirror.example'],
     corsOrigins: [],
     rateLimitPerMinute: 1000,
     trustProxy: 0,
@@ -82,6 +83,19 @@ describe('API Endpoints', () => {
     expect(res.status).toBe(200);
     expect(res.body.page).toBe(2);
     expect(get).toHaveBeenCalledWith('https://catalog.example/genre/action/page/2/', expect.any(Object));
+  });
+
+  it('reads the page count from the "»" link in LK21 pagination', async () => {
+    const pagination = '<ul class="pagination"><li><a href="https://catalog.example/genre/action/page/1">1</a></li>'
+      + '<li class="active"><a href="https://catalog.example/genre/action/page/2">2</a></li>'
+      + '<li><a href="https://catalog.example/genre/action/page/3">3</a></li>'
+      + '<li><a href="https://catalog.example/genre/action/page/50">&raquo;</a></li></ul>';
+    get.mockResolvedValue({ status: 200, data: catalogHtml + pagination });
+
+    const res = await request(app).get('/api/home/genre/action?page=2');
+
+    expect(res.status).toBe(200);
+    expect(res.body.totalPages).toBe(50);
   });
 
   it('returns an empty list for a successfully loaded empty category', async () => {

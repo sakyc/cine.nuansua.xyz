@@ -19,7 +19,7 @@ import {
 } from '../controllers/HomeController';
 import { search } from '../controllers/SearchController';
 import { getMovie, getMovieCast } from '../controllers/MovieController';
-import { getSeries, getSeriesSeasons, getSeriesEpisodes } from '../controllers/SeriesController';
+import { getSeries, getSeriesSeasons, getSeriesEpisodes, getEpisode, getSeriesSchedule } from '../controllers/SeriesController';
 import { getPerson, getPopularActors } from '../controllers/PersonController';
 import { getMoviesByGenre } from '../controllers/GenreController';
 import { 
@@ -30,12 +30,14 @@ import {
   getAllNavigation,
   getGenres
 } from '../controllers/NavigationController';
-import { getCategoryMovies, getRootCategoryMovies } from '../controllers/CategoryController';
+import { getCategoryMovies, getRootCategoryMovies, getDramaMovies, getFilters } from '../controllers/CategoryController';
 import { getTopBoxOffice, getComingSoon, getNews, getTrailers, getHealth, getDebugUpstream } from '../controllers/MiscController';
 import { cache } from '../middlewares/cache';
+import { config } from '../config/env';
 import { runCron } from '../controllers/CronController';
 import * as playback from '../controllers/PlaybackController';
 import * as subtitles from '../controllers/SubtitleController';
+import { embed } from '../controllers/EmbedController';
 
 import {
   apiLimiter, playbackCreateLimiter, requireAdmin, requirePlaybackEnabled,
@@ -50,6 +52,9 @@ router.get('/cron', runCron);
 router.post('/playback/:type/:slug', requirePlaybackEnabled, playbackCreateLimiter, playback.create);
 router.get('/playback/:token/playlist.m3u8', requirePlaybackEnabled, segmentLimiter, playback.playlist);
 router.get('/playback/:token/segment/:index', requirePlaybackEnabled, segmentLimiter, playback.segment);
+router.get('/playback/:token/v/:variant/playlist.m3u8', requirePlaybackEnabled, segmentLimiter, playback.variantPlaylist);
+router.get('/playback/:token/v/:variant/segment/:index', requirePlaybackEnabled, segmentLimiter, playback.segment);
+router.get('/embed/:type/:slug/:provider', upstreamLimiter, embed);
 router.get('/subtitles/:type/:slug', subtitleLimiter, subtitles.search);
 router.post('/subtitles/movie/:slug/:token', subtitleLimiter, subtitles.download);
 
@@ -79,6 +84,13 @@ router.get('/movie/:id/cast', upstreamLimiter, getMovieCast);
 router.get('/series/:id', upstreamLimiter, getSeries);
 router.get('/series/:id/seasons', upstreamLimiter, getSeriesSeasons);
 router.get('/series/:id/episodes', upstreamLimiter, getSeriesEpisodes);
+router.get('/series/:id/schedule', upstreamLimiter, getSeriesSchedule);
+router.get('/episode/:id', upstreamLimiter, getEpisode);
+
+// Series-site listings (drakor = /drama/country/south-korea)
+router.get('/drama/:category(country|genre|years|year|series)/:slug', upstreamLimiter, getDramaMovies);
+router.get('/drama/:slug', upstreamLimiter, getDramaMovies);
+router.get('/filters/:site', getFilters);
 
 router.get('/person/:id', upstreamLimiter, cache(86400), getPerson);
 router.get('/actors/popular', cache(86400), getPopularActors);
@@ -105,6 +117,8 @@ router.get('/news', cache(3600), getNews);
 router.get('/trailers', cache(3600), getTrailers);
 
 router.get('/health', getHealth);
+// Features the frontend should offer on this server.
+router.get('/config', (_req, res) => { res.set('Cache-Control', 'public, max-age=300').json({ success: true, data: { playback: config.playbackEnabled } }); });
 router.get('/debug/upstream', requireAdmin, getDebugUpstream);
 
 export default router;

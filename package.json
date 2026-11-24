@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "node scripts/prisma.cjs migrate deploy",
     "db:status": "node scripts/prisma.cjs migrate status",
-    "catalog:refresh": "node dist/scripts/refresh-catalog.js"
+    "catalog:refresh": "node dist/scripts/refresh-catalog.js",
+    "catalog:crawl": "node dist/scripts/crawl-catalog.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

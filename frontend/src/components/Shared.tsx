@@ -15,19 +15,21 @@ export function Navbar() {
       <NavLink to="/" end onClick={() => setMenu(false)}>Beranda</NavLink>
       <NavLink to="/films" onClick={() => setMenu(false)}>Film</NavLink>
       <NavLink to="/series" onClick={() => setMenu(false)}>Series</NavLink>
-      <NavLink to="/genre/action" onClick={() => setMenu(false)}>Genre</NavLink>
+      <NavLink to="/drakor" onClick={() => setMenu(false)}>Drakor</NavLink>
+      <NavLink to="/ongoing" onClick={() => setMenu(false)}>Ongoing</NavLink>
+      <NavLink to="/jelajah" onClick={() => setMenu(false)}>Jelajahi</NavLink>
       <NavLink to="/popular" onClick={() => setMenu(false)}>Populer</NavLink>
     </div>
     <form className="nav-search" onSubmit={submit}><Search size={16} /><input aria-label="Cari judul film atau series" placeholder="Cari judul film atau series..." value={query} onChange={event => setQuery(event.target.value)} /></form>
     <button className="menu-button" type="button" aria-label={menu ? 'Tutup menu' : 'Buka menu'} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button>
   </nav></header>;
 }
-export function Footer() { return <footer className="footer"><div className="container"><div className="footer-top"><Logo /><div><Link to="/">Beranda</Link><Link to="/genre/action">Genre</Link><Link to="/popular">Populer</Link></div></div><div className="footer-bottom">© {new Date().getFullYear()} Sinemaku. Temukan cerita berikutnya.</div></div></footer>; }
+export function Footer() { return <footer className="footer"><div className="container"><div className="footer-top"><Logo /><div><Link to="/">Beranda</Link><Link to="/jelajah">Jelajahi</Link><Link to="/drakor">Drakor</Link><Link to="/popular">Populer</Link></div></div><div className="footer-bottom">© {new Date().getFullYear()} Sinemaku. Temukan cerita berikutnya.</div></div></footer>; }
 export function MovieCard({ card }: { card: Card }) {
   const [failed, setFailed] = useState(false);
   return <Link className="movie-card" to={`/${card.type}/${encodeURIComponent(card.slug)}`} viewTransition>
     <div className="poster">{card.poster && !failed ? <img src={card.poster} alt={`Poster ${card.title}`} width="200" height="290" loading="lazy" onError={() => setFailed(true)} /> : <div className="poster-placeholder"><Film size={28} /><span>{card.title}</span></div>}
-      {card.rating != null && <span className="rating"><Star size={11} fill="currentColor" /> {card.rating}</span>}<span className="quality">HD</span>
+      {card.rating != null && <span className="rating"><Star size={11} fill="currentColor" /> {card.rating}</span>}{card.status ? <span className={`quality status ${card.status}`}>{card.status === 'ongoing' ? 'Ongoing' : 'Tamat'}{card.episodes ? ` · ${card.episodes} Eps` : ''}</span> : <span className="quality">HD</span>}
     </div><h3>{card.title}</h3><p>{[card.year, card.type === 'series' ? 'Series' : 'Film'].filter(Boolean).join(' · ')}</p>
   </Link>;
 }

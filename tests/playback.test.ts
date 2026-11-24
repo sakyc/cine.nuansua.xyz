@@ -38,7 +38,7 @@ describe('playback manifest', () => {
     expect(() => rewriteManifest('#EXTM3U\nhttps://127.0.0.1/admin', source, token)).toThrow();
   });
   it('does not serve unknown or malformed sessions', async () => {
-    expect(() => getPlaylist('bad')).toThrow();
-    await expect(getSegment(token, '0')).rejects.toMatchObject({ status: 404 });
+    expect(() => getPlaylist('bad', 'viewer')).toThrow();
+    await expect(getSegment(token, '0', 'viewer')).rejects.toMatchObject({ status: 404 });
   });
 });

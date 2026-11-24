@@ -37,14 +37,21 @@ import { runCron } from '../controllers/CronController';
 import * as playback from '../controllers/PlaybackController';
 import * as subtitles from '../controllers/SubtitleController';
 
+import {
+  apiLimiter, playbackCreateLimiter, requireAdmin, requirePlaybackEnabled,
+  segmentLimiter, subtitleLimiter, upstreamLimiter,
+} from '../middlewares/security';
+
 const router = Router();
 
+router.use(apiLimiter);
+
 router.get('/cron', runCron);
-router.post('/playback/:type/:slug', playback.create);
-router.get('/playback/:token/playlist.m3u8', playback.playlist);
-router.get('/playback/:token/segment/:index', playback.segment);
-router.get('/subtitles/:type/:slug', subtitles.search);
-router.post('/subtitles/movie/:slug/:token', subtitles.download);
+router.post('/playback/:type/:slug', requirePlaybackEnabled, playbackCreateLimiter, playback.create);
+router.get('/playback/:token/playlist.m3u8', requirePlaybackEnabled, segmentLimiter, playback.playlist);
+router.get('/playback/:token/segment/:index', requirePlaybackEnabled, segmentLimiter, playback.segment);
+router.get('/subtitles/:type/:slug', subtitleLimiter, subtitles.search);
+router.post('/subtitles/movie/:slug/:token', subtitleLimiter, subtitles.download);
 
 router.get('/home', getHome);
 router.get('/home/film-unggulan', getFilmUnggulan);
@@ -63,16 +70,17 @@ router.get('/home/korea', getKorea);
 router.get('/home/thailand', getThailand);
 router.get('/home/india', getIndia);
 
-router.get('/search', search);
+// Routes below can trigger an upstream LK21 fetch for an uncached slug, so they get a tighter budget.
+router.get('/search', upstreamLimiter, search);
 
-router.get('/movie/:id', getMovie);
-router.get('/movie/:id/cast', getMovieCast);
+router.get('/movie/:id', upstreamLimiter, getMovie);
+router.get('/movie/:id/cast', upstreamLimiter, getMovieCast);
 
-router.get('/series/:id', getSeries);
-router.get('/series/:id/seasons', getSeriesSeasons);
-router.get('/series/:id/episodes', getSeriesEpisodes);
+router.get('/series/:id', upstreamLimiter, getSeries);
+router.get('/series/:id/seasons', upstreamLimiter, getSeriesSeasons);
+router.get('/series/:id/episodes', upstreamLimiter, getSeriesEpisodes);
 
-router.get('/person/:id', cache(86400), getPerson);
+router.get('/person/:id', upstreamLimiter, cache(86400), getPerson);
 router.get('/actors/popular', cache(86400), getPopularActors);
 
 // Navigation & Menus
@@ -84,12 +92,12 @@ router.get('/home/series', cache(86400), getSeriesMenu);
 router.get('/home/populer', cache(86400), getPopularMenu);
 
 // Category Movies
-router.get('/home/:category(genre|country|years)/:slug', getCategoryMovies);
-router.get('/home/series/:slug', getRootCategoryMovies);
-router.get('/home/populer/:slug', getRootCategoryMovies);
+router.get('/home/:category(genre|country|years)/:slug', upstreamLimiter, getCategoryMovies);
+router.get('/home/series/:slug', upstreamLimiter, getRootCategoryMovies);
+router.get('/home/populer/:slug', upstreamLimiter, getRootCategoryMovies);
 
 // Legacy backward compatibility if needed, but the above are the main ones now
-router.get('/genre/:slug/movies', cache(3600), getMoviesByGenre);
+router.get('/genre/:slug/movies', upstreamLimiter, cache(3600), getMoviesByGenre);
 
 router.get('/top-box-office', cache(3600), getTopBoxOffice);
 router.get('/coming-soon', cache(3600), getComingSoon);
@@ -97,6 +105,6 @@ router.get('/news', cache(3600), getNews);
 router.get('/trailers', cache(3600), getTrailers);
 
 router.get('/health', getHealth);
-router.get('/debug/upstream', getDebugUpstream);
+router.get('/debug/upstream', requireAdmin, getDebugUpstream);
 
 export default router;

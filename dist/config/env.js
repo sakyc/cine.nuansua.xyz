@@ -33,5 +33,13 @@ exports.config = {
         .map((s) => s.trim().replace(/\/$/, ''))
         .filter(Boolean),
     proxyUrl: process.env.LK21_PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '',
-    nodeEnv: process.env.NODE_ENV || 'development'
+    nodeEnv: process.env.NODE_ENV || 'development',
+    // Comma-separated browser origins allowed to call the API. Empty = same-origin only in
+    // production, any origin in development.
+    corsOrigins: (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean),
+    // Number of reverse proxies in front of the API (Vercel/Nginx = 1) so req.ip is the viewer's IP.
+    trustProxy: integerSetting('TRUST_PROXY', 0, 0, 10),
+    rateLimitPerMinute: integerSetting('RATE_LIMIT_PER_MINUTE', 120, 10, 10000),
+    playbackEnabled: (process.env.PLAYBACK_ENABLED || (process.env.NODE_ENV === 'production' ? 'false' : 'true')) === 'true',
+    playbackSessionsPerIp: integerSetting('PLAYBACK_SESSIONS_PER_IP', 3, 1, 50),
 };

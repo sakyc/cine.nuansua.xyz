@@ -8,8 +8,9 @@ import { isIP } from 'net';
 import { catalog } from './catalog';
 import { isJsonObject } from '../types/catalog';
 import { ServiceError } from './errors';
+import { config } from '../config/env';
 
-type Session = { manifest: string; segments: string[]; expires: number };
+type Session = { manifest: string; segments: string[]; expires: number; owner: string };
 const sessions = new Map<string, Session>();
 const maxSessions = 100;
 const sessionLifetime = 4 * 60 * 60_000;
@@ -136,9 +137,17 @@ function jsonObject(raw: unknown): Record<string, unknown> {
   throw new ServiceError(502, 'Invalid playback response');
 }
 
-export async function createPlayback(type: 'movie' | 'series', slug: string) {
+/** Keeps at most `limit` sessions per viewer by dropping that viewer's oldest sessions. */
+function trimOwnerSessions(owner: string, limit: number) {
+  const owned = [...sessions].filter(([, value]) => value.owner === owner);
+  for (const [key] of owned.slice(0, Math.max(0, owned.length - limit))) sessions.delete(key);
+}
+
+/** Sessions are bound to the viewer's IP so a playlist URL cannot be shared or hotlinked. */
+export async function createPlayback(type: 'movie' | 'series', slug: string, owner: string) {
   const now = Date.now();
   for (const [key, value] of sessions) if (value.expires <= now) sessions.delete(key);
+  trimOwnerSessions(owner, config.playbackSessionsPerIp - 1);
   if (sessions.size >= maxSessions) throw new ServiceError(503, 'Playback session limit reached');
   const { data } = await catalog.getDetail(type, slug);
   const entry = Array.isArray(data.streamembed) ? data.streamembed.find(item => isJsonObject(item) && item.provider === 'P2P') : undefined;
@@ -164,21 +173,23 @@ export async function createPlayback(type: 'movie' | 'series', slug: string) {
   const rewritten = rewriteManifest(playlist.data, source, token);
   const createdAt = Date.now();
   for (const [key, value] of sessions) if (value.expires <= createdAt) sessions.delete(key);
+  trimOwnerSessions(owner, config.playbackSessionsPerIp - 1);
   if (sessions.size >= maxSessions) throw new ServiceError(503, 'Playback session limit reached');
-  sessions.set(token, { ...rewritten, expires: createdAt + sessionLifetime });
+  sessions.set(token, { ...rewritten, expires: createdAt + sessionLifetime, owner });
   return { url: `/api/playback/${token}/playlist.m3u8`, expiresAt: new Date(createdAt + sessionLifetime).toISOString() };
 }
 
-function getSession(token: string): Session {
+function getSession(token: string, owner: string): Session {
   if (!/^[a-f0-9]{48}$/.test(token)) throw new ServiceError(404, 'Playback session not found');
   const session = sessions.get(token);
   if (!session || session.expires <= Date.now()) { sessions.delete(token); throw new ServiceError(404, 'Playback session expired'); }
+  if (session.owner !== owner) throw new ServiceError(404, 'Playback session not found');
   return session;
 }
 
-export function getPlaylist(token: string) { return getSession(token).manifest; }
-export async function getSegment(token: string, rawIndex: string): Promise<SegmentStream> {
-  const session = getSession(token);
+export function getPlaylist(token: string, owner: string) { return getSession(token, owner).manifest; }
+export async function getSegment(token: string, rawIndex: string, owner: string): Promise<SegmentStream> {
+  const session = getSession(token, owner);
   if (!/^(0|[1-9]\d{0,4})$/.test(rawIndex)) throw new ServiceError(404, 'Segment not found');
   const raw = session.segments[Number(rawIndex)];
   if (!raw) throw new ServiceError(404, 'Segment not found');

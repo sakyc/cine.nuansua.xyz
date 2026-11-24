@@ -20,6 +20,12 @@ jest.mock('../src/config/env', () => ({
     lk21BaseUrls: ['https://catalog.example'],
     proxyUrl: '',
     cronSecret: 'test-cron-secret',
+    corsOrigins: [],
+    rateLimitPerMinute: 1000,
+    trustProxy: 0,
+    nodeEnv: 'test',
+    playbackEnabled: true,
+    playbackSessionsPerIp: 3,
   },
 }));
 jest.mock('../src/config/redis', () => ({ redis: { status: 'disabled' } }));

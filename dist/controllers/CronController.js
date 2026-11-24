@@ -4,15 +4,13 @@ exports.runCron = void 0;
 const logger_1 = require("../config/logger");
 const catalog_1 = require("../services/catalog");
 const env_1 = require("../config/env");
-const crypto_1 = require("crypto");
+const security_1 = require("../middlewares/security");
 const runCron = async (req, res) => {
     try {
         if (!env_1.config.cronSecret) {
             return res.status(503).json({ success: false, message: 'Cron authentication is not configured' });
         }
-        const supplied = Buffer.from(req.headers.authorization || '');
-        const expected = Buffer.from(`Bearer ${env_1.config.cronSecret}`);
-        if (supplied.length !== expected.length || !(0, crypto_1.timingSafeEqual)(supplied, expected)) {
+        if (!(0, security_1.hasAdminSecret)(req)) {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         }
         await catalog_1.catalog.refreshCatalog();

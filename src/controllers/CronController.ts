@@ -2,16 +2,14 @@ import { Request, Response } from 'express';
 import { logger } from '../config/logger';
 import { catalog } from '../services/catalog';
 import { config } from '../config/env';
-import { timingSafeEqual } from 'crypto';
+import { hasAdminSecret } from '../middlewares/security';
 
 export const runCron = async (req: Request, res: Response) => {
   try {
     if (!config.cronSecret) {
       return res.status(503).json({ success: false, message: 'Cron authentication is not configured' });
     }
-    const supplied = Buffer.from(req.headers.authorization || '');
-    const expected = Buffer.from(`Bearer ${config.cronSecret}`);
-    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+    if (!hasAdminSecret(req)) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 

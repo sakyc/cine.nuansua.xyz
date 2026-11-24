@@ -59,6 +59,25 @@ yang tersedia, dan unduhan tunduk pada kuota serta ketentuan penyedia. Subtitle
 series otomatis belum didukung karena identitas episode belum andal. Waktu
 subtitle belum tentu cocok dengan versi video. Jangan kirim key ke frontend.
 
+## Keamanan
+
+- Rate limit per IP per menit: umum `RATE_LIMIT_PER_MINUTE` (default 120), endpoint
+  yang bisa memicu request ke LK21 (detail, pencarian, kategori) setengahnya,
+  pembuatan sesi playback 10, segmen video 600, dan subtitle 20. Melebihi batas
+  menghasilkan `429`. Request dengan `Authorization: Bearer <CRON_SECRET>` tidak dibatasi.
+  Penyimpanan limit ada di memori proses, sehingga pada serverless/beberapa instance
+  batasnya berlaku per instance.
+- Di belakang reverse proxy (Vercel, Nginx, Cloudflare) set `TRUST_PROXY=1` agar
+  limit dan sesi playback memakai IP pengguna, bukan IP proxy.
+- `CORS_ORIGINS` berisi daftar origin frontend dipisahkan koma. Jika kosong,
+  development mengizinkan semua origin dan production hanya same-origin.
+- `/api/debug/upstream` memerlukan header admin yang sama dengan `/api/cron`.
+- Playback aktif secara default di development dan mati di production kecuali
+  `PLAYBACK_ENABLED=true`. Sesi terikat ke IP pembuatnya; URL playlist dari IP lain
+  menghasilkan 404, dan setiap IP memegang paling banyak `PLAYBACK_SESSIONS_PER_IP`
+  sesi (sesi tertua dibuang). Pengguna yang IP-nya berganti di tengah tontonan
+  perlu menekan "Coba lagi".
+
 ## Cache, fallback, dan pencarian
 
 - Semua slider berbagi satu snapshot beranda. Daftar tidak lagi mengambil detail

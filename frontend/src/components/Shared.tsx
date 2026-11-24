@@ -4,7 +4,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ArrowRight, Film, Menu, Play, Search, Star, X } from 'lucide-react';
 import type { Card } from '../services/api';
 
-export function Logo() { return <Link to="/" className="logo"><span><Play size={15} fill="currentColor" /></span>SINEMAKU</Link>; }
+export function Logo() { return <Link to="/" className="logo"><span><Play size={15} fill="currentColor" /></span>CINE</Link>; }
 export function Navbar() {
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState('');
@@ -24,7 +24,7 @@ export function Navbar() {
     <button className="menu-button" type="button" aria-label={menu ? 'Tutup menu' : 'Buka menu'} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button>
   </nav></header>;
 }
-export function Footer() { return <footer className="footer"><div className="container"><div className="footer-top"><Logo /><div><Link to="/">Beranda</Link><Link to="/jelajah">Jelajahi</Link><Link to="/drakor">Drakor</Link><Link to="/popular">Populer</Link></div></div><div className="footer-bottom">© {new Date().getFullYear()} Sinemaku. Temukan cerita berikutnya.</div></div></footer>; }
+export function Footer() { return <footer className="footer"><div className="container"><div className="footer-top"><Logo /><div><Link to="/">Beranda</Link><Link to="/jelajah">Jelajahi</Link><Link to="/drakor">Drakor</Link><Link to="/popular">Populer</Link></div></div><div className="footer-bottom">© {new Date().getFullYear()} Cine. Temukan cerita berikutnya.</div></div></footer>; }
 export function MovieCard({ card }: { card: Card }) {
   const [failed, setFailed] = useState(false);
   return <Link className="movie-card" to={`/${card.type}/${encodeURIComponent(card.slug)}`} viewTransition>

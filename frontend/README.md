@@ -1,4 +1,4 @@
-# Sinemaku frontend
+# Cine frontend
 
 Frontend React + Vite untuk API katalog LK21. Jalankan PostgreSQL dan backend
 terlebih dahulu, lalu di terminal CMD lain:

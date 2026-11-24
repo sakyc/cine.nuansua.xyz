@@ -13,7 +13,7 @@ const limit = 500;
 
 function headers() {
   if (!config.opensubtitlesApiKey) throw new ServiceError(503, 'Subtitle otomatis belum dikonfigurasi');
-  return { 'Api-Key': config.opensubtitlesApiKey, 'User-Agent': 'Sinemaku v1.0', 'Accept': 'application/json' };
+  return { 'Api-Key': config.opensubtitlesApiKey, 'User-Agent': 'Cine v1.0', 'Accept': 'application/json' };
 }
 
 function cleanTitle(title: string): string {

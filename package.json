@@ -1,7 +1,7 @@
 {
-  "name": "lk21-catalog-api",
+  "name": "cine-api",
   "version": "1.0.0",
-  "description": "Production-ready Movie & TV Catalog REST API",
+  "description": "Cine — film, series, and drakor catalog API",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",

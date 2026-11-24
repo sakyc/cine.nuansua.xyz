@@ -1,4 +1,6 @@
-# layarkaca21-api
+# Cine
+
+Situs nonton film, series, dan drakor: https://cine.nuansua.xyz
 
 REST API katalog film dan serial berbasis Express, TypeScript, dan PostgreSQL.
 Metadata diambil dari sumber LK21 lalu disimpan sebagai katalog lokal dan snapshot
@@ -157,8 +159,8 @@ npm run catalog:refresh
 `GET /api/cron` memerlukan header `Authorization: Bearer <CRON_SECRET>`.
 Tanpa secret terkonfigurasi: 503; secret salah: 401.
 
-Untuk deploy production di VPS (Caddy + HTTPS, API, PostgreSQL, Redis), ikuti [DEPLOY.md](DEPLOY.md):
-salin `.env.production.example` menjadi `.env`, lalu `docker compose up -d --build`.
+Untuk deploy production di VPS (Caddy + HTTPS, API, PostgreSQL, Redis): salin
+`.env.production.example` menjadi `.env`, isi nilainya, lalu `docker compose up -d --build`.
 Compose ini memakai database/volume terpisah dari `docker-compose.local.yml`,
 menjalankan migrasi sebelum API, dan hanya mengekspos port API. Gunakan password
 URL-safe (misalnya hex acak) untuk interpolasi URL Compose. Password volume lama

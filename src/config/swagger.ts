@@ -23,7 +23,7 @@ const catalogResponses = {
 export const swaggerSpec = {
   openapi: '3.0.0',
   info: {
-    title: 'Movie & TV Catalog API',
+    title: 'Cine API',
     version: '1.0.0',
     description: 'API documentation for LK21 metadata catalog',
   },

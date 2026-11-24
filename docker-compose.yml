@@ -10,7 +10,7 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN, e.g. cine.example.com}
+      DOMAIN: ${DOMAIN:-cine.nuansua.xyz}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -32,7 +32,7 @@ services:
       NODE_ENV: production
       # Caddy sits in front of the API: trust one proxy hop so limits and playback sessions see viewer IPs.
       TRUST_PROXY: 1
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://${DOMAIN}}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://cine.nuansua.xyz}
       CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET}
       OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}
       LK21_BASE_URL: ${LK21_BASE_URL:-https://tv13.lk21official.cc}

@@ -1,5 +1,5 @@
 {
-  "name": "sinemaku-frontend",
+  "name": "cine-frontend",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",

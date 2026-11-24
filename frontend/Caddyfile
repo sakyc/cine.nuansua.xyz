@@ -1,6 +1,6 @@
-# DOMAIN comes from the environment (e.g. cine.example.com). Caddy obtains and renews the HTTPS
+# DOMAIN comes from the environment (cine.nuansua.xyz). Caddy obtains and renews the HTTPS
 # certificate automatically once the domain's DNS points at this server and ports 80/443 are open.
-{$DOMAIN:localhost} {
+{$DOMAIN:cine.nuansua.xyz} {
 	encode zstd gzip
 
 	# Backend API and its documentation

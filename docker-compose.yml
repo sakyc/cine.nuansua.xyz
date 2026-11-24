@@ -1,16 +1,17 @@
-# Production stack for a VPS: web (Caddy + frontend, HTTPS) -> api -> db/redis.
-# Only the web service is reachable from the internet (ports 80/443).
+# Production stack: web (Caddy + frontend) -> api -> db/redis.
+# By default web listens only on 127.0.0.1:8088 so an existing web server (Apache/cPanel, Nginx) that
+# owns ports 80/443 can serve the domain with HTTPS and proxy it here. Nothing else is published.
 # Usage: cp .env.production.example .env  &&  edit .env  &&  docker compose up -d --build
 services:
   web:
     build:
       context: ./frontend
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      # Standalone server with free ports 80/443: WEB_BIND=80, WEB_TLS_BIND=443, SITE_ADDRESS=<domain>.
+      - "${WEB_BIND:-127.0.0.1:8088}:80"
+      - "${WEB_TLS_BIND:-127.0.0.1:8443}:443"
     environment:
-      DOMAIN: ${DOMAIN:-cine.nuansua.xyz}
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -30,8 +31,9 @@ services:
       REDIS_URL: redis://redis:6379
       PORT: 3000
       NODE_ENV: production
-      # Caddy sits in front of the API: trust one proxy hop so limits and playback sessions see viewer IPs.
-      TRUST_PROXY: 1
+      # Proxy hops in front of the API so limits and playback sessions see viewer IPs:
+      # 2 = Apache/Nginx -> Caddy (default), 1 = Caddy alone on 80/443.
+      TRUST_PROXY: ${TRUST_PROXY:-2}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://cine.nuansua.xyz}
       CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET}
       OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}

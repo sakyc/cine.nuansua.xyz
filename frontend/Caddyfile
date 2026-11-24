@@ -1,6 +1,17 @@
-# DOMAIN comes from the environment (cine.nuansua.xyz). Caddy obtains and renews the HTTPS
-# certificate automatically once the domain's DNS points at this server and ports 80/443 are open.
-{$DOMAIN:cine.nuansua.xyz} {
+# Serves the frontend and proxies /api to the backend.
+#
+# Default (SITE_ADDRESS unset): plain HTTP on :80 inside the container, for a server where another web
+# server (Apache/cPanel, Nginx) already owns ports 80/443, terminates HTTPS and proxies the domain here.
+# Standalone server: set SITE_ADDRESS=cine.nuansua.xyz and WEB_BIND/WEB_TLS_BIND so Caddy owns 80/443
+# and gets the HTTPS certificate itself.
+{
+	servers {
+		# Keep the viewer IP forwarded by the front web server (Docker/private network only).
+		trusted_proxies static private_ranges
+	}
+}
+
+{$SITE_ADDRESS::80} {
 	encode zstd gzip
 
 	# Backend API and its documentation

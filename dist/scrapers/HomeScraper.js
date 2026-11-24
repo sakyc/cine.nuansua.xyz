@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HomeScraper = void 0;
 const BaseScraper_1 = require("./BaseScraper");
+const catalog_1 = require("../types/catalog");
 class HomeScraper extends BaseScraper_1.BaseScraper {
     async scrapeHome() {
         const $ = await this.fetchHtml('/');
@@ -59,6 +60,10 @@ class HomeScraper extends BaseScraper_1.BaseScraper {
             else if (label.includes('india'))
                 sections.india = cards;
         });
+        for (const key of ['latestSeries', 'seriesUpdate', 'drakor']) {
+            for (const card of sections[key])
+                card.type = 'series';
+        }
         return sections;
     }
     extractCards($, container) {
@@ -74,17 +79,20 @@ class HomeScraper extends BaseScraper_1.BaseScraper {
                 const yearRaw = $(el).find('.year').text().trim();
                 const duration = $(el).find('.duration').text().trim() || null;
                 const genre = $(el).find('meta[itemprop="genre"]').attr('content') || $(el).find('.genre').text().trim() || null;
-                items.push({
+                const card = {
+                    ...(0, catalog_1.emptyExtraDetails)(),
                     id,
                     slug: id,
-                    type: link.includes('series') ? 'series' : 'movie',
+                    type: link.includes('series') || /^S\./i.test(duration || '') || $(el).find('.episode').length > 0 ? 'series' : 'movie',
                     title,
                     year: parseInt(yearRaw, 10) || null,
                     poster,
                     rating: parseFloat(ratingRaw) || null,
                     duration,
                     genre
-                });
+                };
+                if ((0, catalog_1.isCatalogCard)(card))
+                    items.push(card);
             }
         });
         return items;

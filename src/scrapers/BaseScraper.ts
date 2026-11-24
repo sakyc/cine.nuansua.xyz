@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { logger } from '../config/logger';
 import { config } from '../config/env';
 import https from 'https';
+import { emptyExtraDetails } from '../types/catalog';
 
 export class PageNotFoundError extends Error {
   status = 404;
@@ -40,7 +41,7 @@ export class BaseScraper {
         'Upgrade-Insecure-Requests': '1'
       },
       httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
-      timeout: 20000,
+      timeout: config.upstreamTimeoutMs || 8000,
       maxRedirects: 5,
       validateStatus: (s: number) => s < 500,
     };
@@ -54,7 +55,7 @@ export class BaseScraper {
           protocol: p.protocol.replace(':', ''),
         };
       } catch {
-        logger.warn(`Invalid proxy URL: ${config.proxyUrl}`);
+        logger.warn('Invalid proxy URL configuration');
       }
     }
     return cfg;
@@ -68,10 +69,11 @@ export class BaseScraper {
     for (const base of bases) {
       const url = isAbsolute ? endpoint : `${base}${endpoint}`;
       const baseLabel = isAbsolute ? new URL(endpoint).origin : base;
+      const requestedPath = new URL(url).pathname;
       try {
         const response = await axios.get(url, this.buildAxiosConfig(url, baseLabel));
 
-        if (response.status === 403 || response.status === 401 || response.status === 429) {
+        if (response.status === 403 || response.status === 401 || response.status === 429 || response.status >= 500) {
           tried.push({ base: baseLabel, status: response.status });
           logger.error(`Upstream ${response.status} for ${endpoint} via ${baseLabel}`);
           continue;
@@ -87,7 +89,6 @@ export class BaseScraper {
         const finalUrl = response.request?.res?.responseUrl || '';
         if (finalUrl) {
           const finalPath = new URL(finalUrl).pathname;
-          const requestedPath = isAbsolute ? new URL(endpoint).pathname : endpoint;
           if (finalPath === '/' && requestedPath !== '/' && requestedPath !== '') {
             throw new PageNotFoundError();
           }
@@ -101,10 +102,20 @@ export class BaseScraper {
           logger.info(`Following redirect to ${targetUrl}`);
           const targetResponse = await axios.get(targetUrl, this.buildAxiosConfig(targetUrl, baseLabel));
 
+          if ([401, 403, 429].includes(targetResponse.status) || targetResponse.status >= 500) {
+            tried.push({ base: baseLabel, status: targetResponse.status });
+            continue;
+          }
+          if (targetResponse.status >= 400) {
+            throw Object.assign(new Error(`Upstream error: ${targetResponse.status}`), {
+              status: targetResponse.status === 404 ? 404 : 502,
+              upstreamStatus: targetResponse.status, triedBases: tried,
+            });
+          }
+
           const targetFinalUrl = targetResponse.request?.res?.responseUrl || '';
           if (targetFinalUrl) {
             const finalPath = new URL(targetFinalUrl).pathname;
-            const requestedPath = isAbsolute ? new URL(endpoint).pathname : endpoint;
             if (finalPath === '/' && requestedPath !== '/' && requestedPath !== '') {
               throw new PageNotFoundError();
             }
@@ -123,7 +134,7 @@ export class BaseScraper {
         }
         if (axios.isAxiosError(error) && error?.response) {
           const status = error.response.status;
-          if (status === 403 || status === 401 || status === 429) {
+          if (status === 403 || status === 401 || status === 429 || status >= 500) {
             tried.push({ base: baseLabel, status });
             logger.error(`Upstream ${status} for ${endpoint} via ${baseLabel}`);
             continue;
@@ -172,7 +183,14 @@ export class BaseScraper {
 
   public async fetchExtraDetails(id: string) {
     try {
-      const $ = await this.fetchHtml(`/${id}`);
+      return this.extractExtraDetails(await this.fetchHtml(`/${id}`));
+    } catch {
+      logger.warn('Additional metadata unavailable', { id });
+      return emptyExtraDetails();
+    }
+  }
+
+  protected extractExtraDetails($: cheerio.CheerioAPI) {
       const synopsis = $('div.synopsis.collapsed').text().trim();
       let sutradara = '';
       let bintangFilm = '';
@@ -203,11 +221,6 @@ export class BaseScraper {
         updated,
         votes
       };
-    } catch (error) {
-      return {
-        synopsis: '', subtitle: '', sutradara: '', bintangFilm: '', negara: '', release: '', updated: '', votes: ''
-      };
-    }
   }
 
   protected extractTrailer($: cheerio.CheerioAPI): string | null {

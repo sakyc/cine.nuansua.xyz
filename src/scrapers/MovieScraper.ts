@@ -1,13 +1,14 @@
 import { BaseScraper } from './BaseScraper';
+import { CheerioAPI } from 'cheerio';
 
 export class MovieScraper extends BaseScraper {
-  async scrapeDetail(slug: string) {
-    const $ = await this.fetchHtml(`/${slug}`);
+  async scrapeDetail(slug: string, document?: CheerioAPI) {
+    const $ = document || await this.fetchHtml(`/${slug}`);
     
     const title = this.extractText($, 'body', ['h1[itemprop="name"]', 'h1.title', '.movie-title h1', 'h1']);
 
 
-    const extra = await this.fetchExtraDetails(slug);
+    const extra = this.extractExtraDetails($);
 
     let jsonLdData: any = {};
     try {
@@ -22,12 +23,12 @@ export class MovieScraper extends BaseScraper {
     } catch (e) {}
 
     const runtime = this.extractText($, 'body', ['.duration', 'span[itemprop="duration"]']) || null;
-    const isSeries = (jsonLdData['@type'] === 'TVSeries') || (runtime && (runtime.startsWith('S.') || runtime.toLowerCase().includes('episode')));
+    const isSeries = (jsonLdData['@type'] === 'TVSeries') || (!jsonLdData['@type'] && runtime && (runtime.startsWith('S.') || runtime.toLowerCase().includes('episode')));
 
     if (isSeries) {
       const { SeriesScraper } = require('./SeriesScraper');
       const seriesScraper = new SeriesScraper();
-      return seriesScraper.scrapeDetail(slug);
+      return seriesScraper.scrapeDetail(slug, $);
     }
 
     // Extract fields with JSON-LD prioritization

@@ -1,0 +1,20 @@
+services:
+  catalog-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: lk21
+      POSTGRES_DB: lk21
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.local}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - catalog_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lk21 -d lk21"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  catalog_data:

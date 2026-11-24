@@ -1,36 +1,54 @@
-version: '3.8'
 services:
   api:
     build: .
     ports:
       - "3000:3000"
+    command: ["sh", "-c", "npm run db:migrate && npm start"]
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/lk21?schema=public
-      - REDIS_URL=redis://redis:6379
-      - PORT=3000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set a URL-safe POSTGRES_PASSWORD}@db:5432/lk21?schema=public
+      DIRECT_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set a URL-safe POSTGRES_PASSWORD}@db:5432/lk21?schema=public
+      REDIS_URL: redis://redis:6379
+      PORT: 3000
+      NODE_ENV: production
+      CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET}
+      OPENSUBTITLES_API_KEY: ${OPENSUBTITLES_API_KEY:-}
+      LK21_BASE_URL: ${LK21_BASE_URL:-https://tv13.lk21official.cc}
+      LK21_BASE_URLS: ${LK21_BASE_URLS:-}
+      CATALOG_TTL_SECONDS: ${CATALOG_TTL_SECONDS:-1800}
+      DETAIL_TTL_SECONDS: ${DETAIL_TTL_SECONDS:-3600}
+      CATALOG_SEED_PAGES: ${CATALOG_SEED_PAGES:-3}
+      UPSTREAM_TIMEOUT_MS: ${UPSTREAM_TIMEOUT_MS:-8000}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   db:
     image: postgres:15-alpine
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       - POSTGRES_DB=lk21
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lk21"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
 volumes:

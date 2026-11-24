@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMovieCast = exports.getMovie = void 0;
-const MovieScraper_1 = require("../scrapers/MovieScraper");
-const scraper = new MovieScraper_1.MovieScraper();
+const catalog_1 = require("../services/catalog");
+const validation_1 = require("../services/validation");
 const getMovie = async (req, res, next) => {
     try {
-        const data = await scraper.scrapeDetail(req.params.id);
-        res.json({ success: true, data });
+        const { data, meta } = await catalog_1.catalog.getDetail('movie', (0, validation_1.slugParameter)(req.params.id));
+        res.json({ success: true, data, meta });
     }
     catch (error) {
         next(error);
@@ -15,8 +15,8 @@ const getMovie = async (req, res, next) => {
 exports.getMovie = getMovie;
 const getMovieCast = async (req, res, next) => {
     try {
-        const data = await scraper.scrapeDetail(req.params.id);
-        res.json({ success: true, data: data.cast || [] });
+        const { data, meta } = await catalog_1.catalog.getDetail('movie', (0, validation_1.slugParameter)(req.params.id));
+        res.json({ success: true, data: Array.isArray(data.cast) ? data.cast : [], meta });
     }
     catch (error) {
         next(error);

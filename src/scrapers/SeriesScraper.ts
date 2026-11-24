@@ -1,13 +1,14 @@
 import { BaseScraper } from './BaseScraper';
+import { CheerioAPI } from 'cheerio';
 
 export class SeriesScraper extends BaseScraper {
-  async scrapeDetail(slug: string) {
-    const $ = await this.fetchHtml(`/${slug}`);
+  async scrapeDetail(slug: string, document?: CheerioAPI) {
+    const $ = document || await this.fetchHtml(`/${slug}`);
     
     const title = this.extractText($, 'body', ['h1[itemprop="name"]', 'h1.title', '.movie-title h1', 'h1']);
 
     
-    const extra = await this.fetchExtraDetails(slug);
+    const extra = this.extractExtraDetails($);
     
     let jsonLdData: any = {};
     try {
@@ -25,7 +26,7 @@ export class SeriesScraper extends BaseScraper {
     if (jsonLdData['@type'] === 'Movie') {
       const { MovieScraper } = require('./MovieScraper');
       const movieScraper = new MovieScraper();
-      return movieScraper.scrapeDetail(slug);
+      return movieScraper.scrapeDetail(slug, $);
     }
 
     // Extract fields with JSON-LD prioritization

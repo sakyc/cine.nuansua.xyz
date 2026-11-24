@@ -1,11 +1,12 @@
 import { BaseScraper } from './BaseScraper';
 import * as cheerio from 'cheerio';
+import { CatalogCard, HomeSnapshot, HomeSection, emptyExtraDetails, isCatalogCard } from '../types/catalog';
 
 export class HomeScraper extends BaseScraper {
   async scrapeHome() {
     const $ = await this.fetchHtml('/');
     
-    const sections: any = {
+    const sections: HomeSnapshot = {
       filmUnggulan: [],
       latestMovies: [],
       latestSeries: [],
@@ -47,12 +48,15 @@ export class HomeScraper extends BaseScraper {
       else if (label.includes('india')) sections.india = cards;
     });
 
+    for (const key of ['latestSeries', 'seriesUpdate', 'drakor'] as HomeSection[]) {
+      for (const card of sections[key]) card.type = 'series';
+    }
     return sections;
   }
 
   private extractCards($: cheerio.CheerioAPI, container: cheerio.Cheerio<cheerio.AnyNode>) {
-    const items: any[] = [];
-    container.find('li').each((_: any, el: any) => {
+    const items: CatalogCard[] = [];
+    container.find('li').each((_, el) => {
       const link = $(el).find('a').attr('href');
       const title = $(el).find('.poster-title').text().trim() || $(el).find('h2, .title').text().trim();
       const img = $(el).find('img');
@@ -64,17 +68,19 @@ export class HomeScraper extends BaseScraper {
         const yearRaw = $(el).find('.year').text().trim();
         const duration = $(el).find('.duration').text().trim() || null;
         const genre = $(el).find('meta[itemprop="genre"]').attr('content') || $(el).find('.genre').text().trim() || null;
-        items.push({ 
+        const card: CatalogCard = {
+          ...emptyExtraDetails(),
           id, 
           slug: id,
-          type: link.includes('series') ? 'series' : 'movie', 
+          type: link.includes('series') || /^S\./i.test(duration || '') || $(el).find('.episode').length > 0 ? 'series' : 'movie',
           title, 
           year: parseInt(yearRaw, 10) || null, 
           poster, 
           rating: parseFloat(ratingRaw) || null,
           duration,
           genre
-        });
+        };
+        if (isCatalogCard(card)) items.push(card);
       }
     });
     return items;

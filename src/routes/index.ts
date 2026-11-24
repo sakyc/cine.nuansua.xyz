@@ -34,10 +34,17 @@ import { getCategoryMovies, getRootCategoryMovies } from '../controllers/Categor
 import { getTopBoxOffice, getComingSoon, getNews, getTrailers, getHealth, getDebugUpstream } from '../controllers/MiscController';
 import { cache } from '../middlewares/cache';
 import { runCron } from '../controllers/CronController';
+import * as playback from '../controllers/PlaybackController';
+import * as subtitles from '../controllers/SubtitleController';
 
 const router = Router();
 
 router.get('/cron', runCron);
+router.post('/playback/:type/:slug', playback.create);
+router.get('/playback/:token/playlist.m3u8', playback.playlist);
+router.get('/playback/:token/segment/:index', playback.segment);
+router.get('/subtitles/:type/:slug', subtitles.search);
+router.post('/subtitles/movie/:slug/:token', subtitles.download);
 
 router.get('/home', getHome);
 router.get('/home/film-unggulan', getFilmUnggulan);
@@ -56,14 +63,14 @@ router.get('/home/korea', getKorea);
 router.get('/home/thailand', getThailand);
 router.get('/home/india', getIndia);
 
-router.get('/search', cache(3600), search);
+router.get('/search', search);
 
-router.get('/movie/:id', cache(86400), getMovie);
-router.get('/movie/:id/cast', cache(86400), getMovieCast);
+router.get('/movie/:id', getMovie);
+router.get('/movie/:id/cast', getMovieCast);
 
-router.get('/series/:id', cache(86400), getSeries);
-router.get('/series/:id/seasons', cache(86400), getSeriesSeasons);
-router.get('/series/:id/episodes', cache(86400), getSeriesEpisodes);
+router.get('/series/:id', getSeries);
+router.get('/series/:id/seasons', getSeriesSeasons);
+router.get('/series/:id/episodes', getSeriesEpisodes);
 
 router.get('/person/:id', cache(86400), getPerson);
 router.get('/actors/popular', cache(86400), getPopularActors);
@@ -77,9 +84,7 @@ router.get('/home/series', cache(86400), getSeriesMenu);
 router.get('/home/populer', cache(86400), getPopularMenu);
 
 // Category Movies
-router.get('/home/genre/:slug', getCategoryMovies);
-router.get('/home/country/:slug', getCategoryMovies);
-router.get('/home/years/:slug', getCategoryMovies);
+router.get('/home/:category(genre|country|years)/:slug', getCategoryMovies);
 router.get('/home/series/:slug', getRootCategoryMovies);
 router.get('/home/populer/:slug', getRootCategoryMovies);
 

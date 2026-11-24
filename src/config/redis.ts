@@ -9,7 +9,13 @@ const createNoopRedis = () => ({
   on: () => {},
 });
 
-let redisInstance: any;
+export type CacheClient = {
+  status: string;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
+};
+
+let redisInstance: CacheClient;
 
 if (config.redisUrl) {
   const client = new Redis(config.redisUrl, {

@@ -10,8 +10,13 @@
     "postinstall": "prisma generate",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
+    "test:integration": "node scripts/test-postgres.cjs",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node scripts/prisma.cjs migrate deploy",
+    "db:status": "node scripts/prisma.cjs migrate status",
+    "catalog:refresh": "node dist/scripts/refresh-catalog.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

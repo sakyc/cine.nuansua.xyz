@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { MovieScraper } from '../scrapers/MovieScraper';
-
-const scraper = new MovieScraper();
+import { catalog } from '../services/catalog';
+import { slugParameter } from '../services/validation';
 
 export const getMovie = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await scraper.scrapeDetail(req.params.id);
-    res.json({ success: true, data });
+    const { data, meta } = await catalog.getDetail('movie', slugParameter(req.params.id));
+    res.json({ success: true, data, meta });
   } catch (error) {
     next(error);
   }
@@ -14,8 +13,8 @@ export const getMovie = async (req: Request, res: Response, next: NextFunction) 
 
 export const getMovieCast = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await scraper.scrapeDetail(req.params.id);
-    res.json({ success: true, data: data.cast || [] });
+    const { data, meta } = await catalog.getDetail('movie', slugParameter(req.params.id));
+    res.json({ success: true, data: Array.isArray(data.cast) ? data.cast : [], meta });
   } catch (error) {
     next(error);
   }

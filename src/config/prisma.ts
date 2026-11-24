@@ -1,13 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from './logger';
+import { config } from './env';
 
 let prisma: PrismaClient;
 
-if (!process.env.DATABASE_URL) {
+if (!config.databaseUrl) {
   logger.warn('DATABASE_URL not set, Prisma disabled');
   prisma = new Proxy({} as PrismaClient, {
     get: () => {
-      throw new Error('Database not configured (DATABASE_URL missing)');
+      throw Object.assign(new Error('Catalog database is not configured'), { status: 503 });
     },
   });
 } else {

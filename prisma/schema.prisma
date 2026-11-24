@@ -113,3 +113,17 @@ model Tag {
   name   String  @unique
   movies Movie[]
 }
+
+model CatalogEntry {
+  slug      String   @id
+  title     String
+  type      String
+  card      Json
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model CatalogSnapshot {
+  key       String   @id
+  data      Json
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+}

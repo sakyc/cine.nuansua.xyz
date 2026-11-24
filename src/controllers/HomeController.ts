@@ -1,20 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { HomeScraper } from '../scrapers/HomeScraper';
-
-const scraper = new HomeScraper();
-
-// Helper to fetch details for a slice of movies (max 10 items)
-const appendExtraDetails = async (items: any[]) => {
-  const chunkSize = 5;
-  for (let i = 0; i < items.length; i += chunkSize) {
-    const chunk = items.slice(i, i + chunkSize);
-    await Promise.all(chunk.map(async (item) => {
-      const extra = await scraper.fetchExtraDetails(item.id);
-      Object.assign(item, extra);
-    }));
-  }
-  return items;
-};
+import { catalog } from '../services/catalog';
+import { HomeSection } from '../types/catalog';
 
 export const getHome = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -49,137 +35,27 @@ export const getHome = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-export const getLatestMovies = async (req: Request, res: Response, next: NextFunction) => {
+const getSection = (section: HomeSection) => async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.latestMovies) });
+    const result = await catalog.getHome();
+    res.json({ success: true, data: result.data[section], meta: result.meta });
   } catch (error) {
     next(error);
   }
 };
 
-export const getLatestSeries = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.latestSeries) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getTopMonth = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.topMonth) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getRecommendations = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.recommendations) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getFamily = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.family) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getAction = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.action) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getDrakor = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.drakor) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getHorror = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.horror) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getRomance = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.romance) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getKorea = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.korea) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getThailand = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.thailand) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getIndia = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.india) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getFilmUnggulan = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.filmUnggulan) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getSeriesUpdate = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.seriesUpdate) });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getComedy = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await scraper.scrapeHome();
-    res.json({ success: true, data: await appendExtraDetails(data.comedy) });
-  } catch (error) {
-    next(error);
-  }
-};
+export const getLatestMovies = getSection('latestMovies');
+export const getLatestSeries = getSection('latestSeries');
+export const getTopMonth = getSection('topMonth');
+export const getRecommendations = getSection('recommendations');
+export const getFamily = getSection('family');
+export const getAction = getSection('action');
+export const getDrakor = getSection('drakor');
+export const getHorror = getSection('horror');
+export const getRomance = getSection('romance');
+export const getKorea = getSection('korea');
+export const getThailand = getSection('thailand');
+export const getIndia = getSection('india');
+export const getFilmUnggulan = getSection('filmUnggulan');
+export const getSeriesUpdate = getSection('seriesUpdate');
+export const getComedy = getSection('comedy');

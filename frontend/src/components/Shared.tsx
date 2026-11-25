@@ -18,7 +18,7 @@ export function Navbar() {
       <NavLink to="/drakor" onClick={() => setMenu(false)}>Drakor</NavLink>
       <NavLink to="/ongoing" onClick={() => setMenu(false)}>Ongoing</NavLink>
       <NavLink to="/jelajah" onClick={() => setMenu(false)}>Jelajahi</NavLink>
-      <NavLink to="/popular" onClick={() => setMenu(false)}>Populer</NavLink>
+      <NavLink to="/indonesia" onClick={() => setMenu(false)}>Indonesia</NavLink>
     </div>
     <form className="nav-search" onSubmit={submit}><Search size={16} /><input aria-label="Cari judul film atau series" placeholder="Cari judul film atau series..." value={query} onChange={event => setQuery(event.target.value)} /></form>
     <button className="menu-button" type="button" aria-label={menu ? 'Tutup menu' : 'Buka menu'} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button>

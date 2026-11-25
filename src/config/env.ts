@@ -24,6 +24,9 @@ export const config = {
   // Listing pages the background crawler indexes per 30-minute run (0 disables), and the pause after each fetch.
   catalogCrawlPagesPerRun: integerSetting('CATALOG_CRAWL_PAGES_PER_RUN', 20, 0, 500),
   catalogCrawlDelayMs: integerSetting('CATALOG_CRAWL_DELAY_MS', 2000, 250, 60000),
+  // Which listings the crawler walks: "movie" (LK21 film years) and/or "drama" (series-site years).
+  catalogCrawlSources: (process.env.CATALOG_CRAWL_SOURCES || 'movie,drama').split(',')
+    .map(s => s.trim()).filter((s): s is 'movie' | 'drama' => s === 'movie' || s === 'drama'),
   upstreamTimeoutMs: integerSetting('UPSTREAM_TIMEOUT_MS', 8000, 1000, 30000),
   // Time budget for one page across all mirrors (failover stops when it runs out).
   upstreamTotalTimeoutMs: integerSetting('UPSTREAM_TOTAL_TIMEOUT_MS', 15000, 2000, 120000),

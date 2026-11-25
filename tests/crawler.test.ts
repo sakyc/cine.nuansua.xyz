@@ -68,4 +68,14 @@ describe('catalog crawler', () => {
     await crawlCatalog({ ...options, maxPages: 1 });
     expect(crawlCategory).toHaveBeenCalledWith(`year/${newest}`, 1, 1000);
   });
+
+  it('walks series-site years with its own stored position', async () => {
+    store.set('crawl:cursor', { data: { year: 2001, page: 7 }, updatedAt: new Date() });
+    store.set('crawl:cursor:drama', { data: { year: 2021, page: 4 }, updatedAt: new Date() });
+    crawlCategory.mockResolvedValue({ items: 24, totalPages: 1, fetched: false });
+    const stats = await crawlCatalog({ ...options, maxPages: 2, source: 'drama' });
+    expect(crawlCategory.mock.calls.map(([path, page]) => `${path}#${page}`)).toEqual(['drama/year/2021#4', 'drama/year/2021#5']);
+    expect(stats?.cursor).toEqual({ year: 2021, page: 6 });
+    expect(store.get('crawl:cursor')?.data).toEqual({ year: 2001, page: 7 });
+  });
 });

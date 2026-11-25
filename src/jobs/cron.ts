@@ -19,11 +19,11 @@ export const startCronJobs = () => {
     } catch {
       logger.warn('Catalog refresh failed; last successful data remains available');
     }
-    if (config.catalogCrawlPagesPerRun > 0) {
+    for (const source of config.catalogCrawlPagesPerRun > 0 ? config.catalogCrawlSources : []) {
       const stats = await crawlCatalog({
-        maxPages: config.catalogCrawlPagesPerRun, delayMs: config.catalogCrawlDelayMs, maxAgeMs: 7 * 86400_000,
+        source, maxPages: config.catalogCrawlPagesPerRun, delayMs: config.catalogCrawlDelayMs, maxAgeMs: 7 * 86400_000,
       }).catch(() => null);
-      if (stats) logger.info('Catalog crawl step complete', { pages: stats.pages, fetched: stats.fetched, failures: stats.failures, ...stats.cursor });
+      if (stats) logger.info('Catalog crawl step complete', { source, pages: stats.pages, fetched: stats.fetched, failures: stats.failures, ...stats.cursor });
     }
   };
   cron.schedule('*/30 * * * *', refresh, { timezone: 'UTC' });
